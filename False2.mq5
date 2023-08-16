@@ -45,14 +45,14 @@
 #property indicator_label5  "OverSold - False"
 #property indicator_type5   DRAW_LINE
 #property indicator_color5  clrGreen // (Up to 64 colors can be specified)
-#property indicator_style5 STYLE_SOLID
+#property indicator_style5 STYLE_DASHDOT
 #property indicator_width5  5
 
 //--- plot ColorLine
 #property indicator_label6  "OverBought - False"
 #property indicator_type6   DRAW_LINE
 #property indicator_color6  clrRed // (Up to 64 colors can be specified)
-#property indicator_style6 STYLE_SOLID
+#property indicator_style6 STYLE_DASHDOT
 #property indicator_width6  5
 
 
@@ -120,10 +120,10 @@ int OnInit()
    SetIndexBuffer(4,ColorLineBufferOS,INDICATOR_DATA);
    SetIndexBuffer(5,ColorLineBufferOB,INDICATOR_DATA);
 
-   PlotIndexSetInteger(2,PLOT_ARROW,242);
+   PlotIndexSetInteger(2,PLOT_ARROW,234);
    PlotIndexSetInteger(2,PLOT_ARROW_SHIFT,20);
    PlotIndexSetDouble(2,PLOT_EMPTY_VALUE,0);
-   PlotIndexSetInteger(3,PLOT_ARROW,241);
+   PlotIndexSetInteger(3,PLOT_ARROW,233);
    PlotIndexSetInteger(3,PLOT_ARROW_SHIFT,20);
    PlotIndexSetDouble(3,PLOT_EMPTY_VALUE,0);
 
@@ -190,13 +190,13 @@ int OnCalculate(const int rates_total,
          if(SignalBuffer[i-3] > resetOB && SignalBuffer[i-2] < resetOB)
            {
             // Print("Over Bought Arrow Found");
-            ArrowsBufferOB[i-2] = SignalBuffer[i-2];
+            ArrowsBufferOB[i-2] = 80;
            }
 
          if(SignalBuffer[i-3] < resetOS && SignalBuffer[i-2] > resetOS)
            {
             // Print("Over Sold Arrow Found");
-            ArrowsBufferOS[i-2] = SignalBuffer[i-2];
+            ArrowsBufferOS[i-2] = 20;
            }
 
 
