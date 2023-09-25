@@ -7,12 +7,83 @@
 #property link      "https://www.novemind.com"
 #property version   "1.00"
 
+#define orderNum 50
+
+struct fiboValues
+  {
+   string               name;
+   datetime             endTime;
+   double               t1_Price;
+   double               t1_tp;
+   bool                 t1_Placed;
+   double               t2_Price;
+   double               t2_tp;
+   bool                 t2_Placed;
+   double               t3_Price;
+   double               t3_tp;
+   bool                 t3_Placed;
+   ENUM_POSITION_TYPE   orderType;
+
+                     fiboValues()
+     {
+      name = "";
+     }
+  };
+fiboValues od[orderNum];
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void addToStruct(string name,datetime end,double t1_p,double t1_tp,double t2_p,double t2_tp,double t3_p,double t3_tp,ENUM_POSITION_TYPE type)
+  {
+   for(int i = 0; i < orderNum; i++)
+     {
+      if(od[i].name == "")
+        {
+         od[i].name      = name;
+         od[i].endTime   = end;
+         od[i].t1_Placed = false;
+         od[i].t1_Price  = t1_p;
+         od[i].t1_tp     = t1_tp;
+         od[i].t2_Placed = false;
+         od[i].t2_Price  = t2_p;
+         od[i].t2_tp     = t2_tp;
+         od[i].t3_Placed = false;
+         od[i].t3_Price  = t3_p;
+         od[i].t3_tp     = t3_tp;
+         od[i].orderType = type;
+         break;
+        }
+     }
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void removeFromStruct()
+  {
+   for(int i = 0; i< orderNum; i++)
+     {
+      if(od[i].name != "")
+        {
+         Print(iTime(Symbol(),PERIOD_CURRENT,0)," > ",od[i].endTime);
+         if(iTime(Symbol(),PERIOD_CURRENT,0) > od[i].endTime)
+           {
+            Print("  ");
+            Print("Removing from List: ",od[i].name);
+            od[i].name = "";
+           }
+        }
+     }
+  }
+
 
 #include <Trade\Trade.mqh>
 CTrade trade;
 
 input string               str1        = "<><><><><> General Settings <><><><><>";              // _
 input double               lotsize     = 0.01;                                                  // Lot Size
+input int                  stoploss    = 0;                                                     // Stoploss Points (0 means no Stoploss)
 input int                  magic_no    = 123;                                                   // Magic Number
 input int                  rectCandles = 10;                                                    // Shading Candles
 
@@ -57,8 +128,8 @@ string indicatorName = "false2v2";
 void OnTick()
   {
 //---
-
-
+   removeFromStruct();
+   checkTradeConditions();
 
 
    if(newBar())
@@ -174,7 +245,12 @@ void drawFibonacci(ENUM_POSITION_TYPE type,double high, double low)
             ObjectSetInteger(0,name,OBJPROP_LEVELWIDTH,i,1);
             ObjectSetString(0,name,OBJPROP_LEVELTEXT,i,DoubleToString(values_1[i],2));
            }
+
+
+
          double diff = high - low;
+         addToStruct(name,iTime(Symbol(),PERIOD_CURRENT,0)+rectCandles*PeriodSeconds(PERIOD_CURRENT),low+diff*0.236,high-diff*1.1,low+diff*0.382,high-diff*1.62,low+diff*0.5,high-diff*2.62,POSITION_TYPE_SELL);
+
          createRectangle("23"+name,low+diff*0.236,low+diff*0.382,iTime(Symbol(),PERIOD_CURRENT,0),clrRed);
          createRectangle("38"+name,low+diff*0.382,low+diff*0.5,iTime(Symbol(),PERIOD_CURRENT,0),clrTomato);
          createRectangle("61"+name,low+diff*0.5,low+diff*0.618,iTime(Symbol(),PERIOD_CURRENT,0),clrLightCoral);
@@ -182,6 +258,8 @@ void drawFibonacci(ENUM_POSITION_TYPE type,double high, double low)
          createRectangle("tp1"+name,high-diff*1.1,high-diff*1.27,iTime(Symbol(),PERIOD_CURRENT,0),clrRed);
          createRectangle("tp2"+name,high-diff*1.62,high-diff*1.76,iTime(Symbol(),PERIOD_CURRENT,0),clrRed);
          createRectangle("tp3"+name,high-diff*2.62,high-diff*2.86,iTime(Symbol(),PERIOD_CURRENT,0),clrRed);
+         if(ObjectFind(0,name) >= 0)
+            ObjectDelete(0,name);
         }
      }
    else
@@ -208,6 +286,8 @@ void drawFibonacci(ENUM_POSITION_TYPE type,double high, double low)
                ObjectSetString(0,name,OBJPROP_LEVELTEXT,i,DoubleToString(values_1[i],1));
               }
             double diff = high - low;
+
+            addToStruct(name,iTime(Symbol(),PERIOD_CURRENT,0)+rectCandles*PeriodSeconds(PERIOD_CURRENT),high-diff*0.236,low+diff*1.1,high-diff*0.382,low+diff*1.62,high-diff*0.5,low+diff*2.62,POSITION_TYPE_BUY);
             createRectangle("23"+name,high-diff*0.236,high-diff*0.382,iTime(Symbol(),PERIOD_CURRENT,0),clrGreen);
             createRectangle("38"+name,high-diff*0.382,high-diff*0.5,iTime(Symbol(),PERIOD_CURRENT,0),clrLimeGreen);
             createRectangle("61"+name,high-diff*0.5,high-diff*0.618,iTime(Symbol(),PERIOD_CURRENT,0),clrLime);
@@ -215,6 +295,9 @@ void drawFibonacci(ENUM_POSITION_TYPE type,double high, double low)
             createRectangle("tp1"+name,low+diff*1.1,low+diff*1.27,iTime(Symbol(),PERIOD_CURRENT,0),clrGreen);
             createRectangle("tp2"+name,low+diff*1.62,low+diff*1.76,iTime(Symbol(),PERIOD_CURRENT,0),clrGreen);
             createRectangle("tp3"+name,low+diff*2.62,low+diff*2.86,iTime(Symbol(),PERIOD_CURRENT,0),clrGreen);
+
+            if(ObjectFind(0,name) >= 0)
+               ObjectDelete(0,name);
            }
         }
   }
@@ -225,6 +308,8 @@ void drawFibonacci(ENUM_POSITION_TYPE type,double high, double low)
 void placeBuyTrades(double buyTp,double buySL)
   {
    double Ask = SymbolInfoDouble(Symbol(),SYMBOL_ASK);
+   if(stoploss > 0)
+      buySL = Ask - stoploss*Point();
    if(trade.PositionOpen(Symbol(),ORDER_TYPE_BUY,lotsize,Ask,buySL,buyTp,"Buy Trade Placed"))
      {
       Print("Buy Trade Placed");
@@ -237,6 +322,8 @@ void placeBuyTrades(double buyTp,double buySL)
 void placeSellTrades(double sellTp,double sellSL)
   {
    double Bid = SymbolInfoDouble(Symbol(),SYMBOL_BID);
+   if(stoploss > 0)
+      sellSL = Bid + stoploss*Point();
    if(trade.PositionOpen(Symbol(),ORDER_TYPE_SELL,lotsize,Bid,sellSL,sellTp,"Sell Trade Placed"))
      {
       Print("Sell Trade PLaced ");
@@ -258,4 +345,57 @@ void createRectangle(string name, double price1, double price2,datetime time1, c
   }
 
 
+//+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void checkTradeConditions()
+  {
+   for(int i = 0; i < orderNum; i++)
+     {
+      if(od[i].name != "")
+        {
+         if(od[i].orderType == POSITION_TYPE_BUY)
+           {
+            if(od[i].t1_Placed == false && SymbolInfoDouble(Symbol(),SYMBOL_ASK) <= od[i].t1_Price && SymbolInfoDouble(Symbol(),SYMBOL_ASK) >= od[i].t2_Price)
+              {
+               Print("Trade 1: ",SymbolInfoDouble(Symbol(),SYMBOL_ASK)," <= ",od[i].t1_Price);
+               placeBuyTrades(od[i].t1_tp,0);
+               od[i].t1_Placed = true;
+              }
+            if(od[i].t2_Placed == false && SymbolInfoDouble(Symbol(),SYMBOL_ASK) <= od[i].t2_Price&& SymbolInfoDouble(Symbol(),SYMBOL_ASK) >= od[i].t3_Price)
+              {
+               Print("Trade 2: ",SymbolInfoDouble(Symbol(),SYMBOL_ASK)," <= ",od[i].t2_Price);
+               placeBuyTrades(od[i].t2_tp,0);
+               od[i].t2_Placed = true;
+              }
+            if(od[i].t3_Placed == false && SymbolInfoDouble(Symbol(),SYMBOL_ASK) <= od[i].t3_Price)
+              {
+               Print("Trade 3: ",SymbolInfoDouble(Symbol(),SYMBOL_ASK)," <= ",od[i].t3_Price);
+               placeBuyTrades(od[i].t3_tp,0);
+               od[i].t3_Placed = true;
+              }
+           }
+         if(od[i].orderType == POSITION_TYPE_SELL)
+           {
+            if(od[i].t1_Placed == false && SymbolInfoDouble(Symbol(),SYMBOL_BID) >= od[i].t1_Price && SymbolInfoDouble(Symbol(),SYMBOL_BID) <= od[i].t2_Price)
+              {
+               placeSellTrades(od[i].t1_tp,0);
+               od[i].t1_Placed = true;
+              }
+            if(od[i].t2_Placed == false && SymbolInfoDouble(Symbol(),SYMBOL_BID) >= od[i].t2_Price && SymbolInfoDouble(Symbol(),SYMBOL_BID) <= od[i].t2_Price)
+              {
+               placeSellTrades(od[i].t2_tp,0);
+               od[i].t2_Placed = true;
+              }
+            if(od[i].t3_Placed == false && SymbolInfoDouble(Symbol(),SYMBOL_BID) >= od[i].t3_Price)
+              {
+               placeSellTrades(od[i].t3_tp,0);
+               od[i].t3_Placed = true;
+              }
+           }
+        }
+     }
+  }
 //+------------------------------------------------------------------+
