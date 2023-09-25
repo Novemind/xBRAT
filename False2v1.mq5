@@ -67,7 +67,8 @@ input ENUM_STO_PRICE       price_field=STO_LOWHIGH;   // method of calculation o
 input double oversold = 80;      // Oversold
 input double overbought = 20;    // OverBought
 input double reset = 35;         // Reset Value
-
+input double GreendrawPoints = 20;   // Green Arrow Point Setting
+input double ReddrawPoints = 20;   // Red Arrow Point Setting
 double resetOB;
 double resetOS;
 //--- indicator buffers
@@ -191,14 +192,14 @@ int OnCalculate(const int rates_total,
            {
             // Print("Over Bought Arrow Found");
             ArrowsBufferOB[i-2] = 80;
-            createArrow(iTime(Symbol(),PERIOD_CURRENT,i-2),iHigh(Symbol(),PERIOD_CURRENT,i-2),buy);
+            createArrow(time[i-2],high[i-2],sell);
            }
 
          if(SignalBuffer[i-3] < resetOS && SignalBuffer[i-2] > resetOS)
            {
             // Print("Over Sold Arrow Found");
             ArrowsBufferOS[i-2] = 20;
-            createArrow(iTime(Symbol(),PERIOD_CURRENT,i-2),iHigh(Symbol(),PERIOD_CURRENT,i-2),sell);
+            createArrow(time[i-2],low[i-2],buy);
            }
 
 
@@ -236,7 +237,7 @@ int OnCalculate(const int rates_total,
            {
             for(int a = 0; a <= crossUP; a++)
               {
-               Print("3 Cross Up Found", time[i-a]);
+               // Print("3 Cross Up Found", time[i-a]);
                ColorLineBufferOS[i-a] = 1;
               }
            }
@@ -254,7 +255,7 @@ int OnCalculate(const int rates_total,
             for(int a = 0; a <= crossDN; a++)
               {
                // Print("3 Cross Down Found", time[i-a]);
-               ColorLineBufferOB[i-a] = 100;
+               ColorLineBufferOB[i-a] = 99;
               }
            }
 
@@ -295,11 +296,14 @@ int OnCalculate(const int rates_total,
          if(SignalBuffer[i-3] > resetOB && SignalBuffer[i-2] < resetOB)
            {
             ArrowsBufferOB[i-2] = SignalBuffer[i-2];
+            createArrow(time[i-2],high[i-2],sell);
            }
          if(SignalBuffer[i-3] < resetOS && SignalBuffer[i-2] > resetOS)
            {
             // Print("Over Sold Arrow Found");
+
             ArrowsBufferOS[i-2] = SignalBuffer[i-2];
+            createArrow(time[i-2],low[i-2],buy);
            }
 
 
@@ -331,7 +335,7 @@ int OnCalculate(const int rates_total,
            {
             for(int a = 0; a <= crossUP; a++)
               {
-               Print("3 Cross Up Found", time[i-a]);
+               // Print("3 Cross Up Found", time[i-a]);
                ColorLineBufferOS[i-a] = 1;
               }
            }
@@ -357,8 +361,8 @@ int OnCalculate(const int rates_total,
            {
             for(int a = 0; a <= crossDN; a++)
               {
-               Print("3 Cross Down Found", time[i-a]);
-               ColorLineBufferOB[i-a] = 100;
+               //  Print("3 Cross Down Found", time[i-a]);
+               ColorLineBufferOB[i-a] = 99;
               }
            }
          if(SignalBuffer[i-1] < resetOB || SignalBuffer[i-1] > resetOS)
@@ -431,6 +435,16 @@ void OnDeinit(const int reason)
    if(handle!=INVALID_HANDLE)
       IndicatorRelease(handle);
 //--- clear the chart after deleting the indicator
+
+   string name = "";
+   for(int i = ObjectsTotal(0)-1; i >= 0; i--)
+     {
+      name = ObjectName(0,i);
+      if((StringFind(name,sell,0) >= 0  || StringFind(name,buy,0) >= 0)&& ObjectGetInteger(0,name,OBJPROP_TYPE) == OBJ_ARROW)
+        {
+         ObjectDelete(0,name);
+        }
+     }
    Comment("");
   }
 //+------------------------------------------------------------------+
@@ -465,6 +479,15 @@ const string buy = "Buy",sell = "Sell";
 //+------------------------------------------------------------------+
 void createArrow(datetime time, double price, string type)
   {
+   if(type == buy)
+     {
+      price = price - GreendrawPoints*Point()*10;
+
+     }
+   else
+     {
+      price = price + ReddrawPoints*Point()*10;
+     }
    string objName = type+IntegerToString(time);
    if(!ObjectCreate(0,objName,OBJ_ARROW,0,time,price))
      {
@@ -474,11 +497,13 @@ void createArrow(datetime time, double price, string type)
      {
       if(type == buy)
         {
+
          ObjectSetInteger(0,objName,OBJPROP_COLOR,clrGreen);
          ObjectSetInteger(0,objName,OBJPROP_ARROWCODE,233);
         }
       else
         {
+
          ObjectSetInteger(0,objName,OBJPROP_COLOR,clrRed);
          ObjectSetInteger(0,objName,OBJPROP_ARROWCODE,234);
         }
