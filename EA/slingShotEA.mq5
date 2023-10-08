@@ -6,7 +6,7 @@
 #property copyright "Copyright 2023, Novemind inc."
 #property link      "https://www.novemind.com"
 #property version   "1.00"
-
+#resource "\\Indicators\\false2v1.ex5"
 #define orderNum 50
 
 struct fiboValues
@@ -85,19 +85,42 @@ input string               str1        = "<><><><><> General Settings <><><><><>
 input double               lotsize     = 0.01;                                                  // Lot Size
 input int                  stoploss    = 0;                                                     // Stoploss Points (0 means no Stoploss)
 input int                  magic_no    = 123;                                                   // Magic Number
-input int                  rectCandles = 10;                                                    // Shading Candles
+input int                  rectCandles = 3;                                                    // Shading Candles
 
 const string buyFibo = "buyFibo",sellFibo = "sellFibo";
 
 int falseStoHandler;
-double overBoughtSell[],overSoughtBuy[];
+double overBoughtSell[],overSoughtBuy[],stoValue[];
 bool sellDrawn = false, buyDrawn = false;
+datetime previousBuy, previousSell ;
+datetime expiry=D'2023.12.30 23:00:00';
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
   {
 //---
+   Print("Version 2.00");
+   if(TimeCurrent()>expiry)
+     {
+      Print("Error: 318");
+      ExpertRemove();
+     }
+   string name = "";
+   for(int i = ObjectsTotal(0,0); i > 0 ; i--)
+     {
+      name = ObjectName(0,i);
+      if(ObjectGetInteger(0,name,OBJPROP_TYPE) == OBJ_RECTANGLE)
+        {
+         if(StringFind(name,"23",0) >= 0 || StringFind(name,"38",0) >= 0 || StringFind(name,"61",0) >= 0 ||
+            StringFind(name,"tp1",0) >= 0 || StringFind(name,"tp2",0) >= 0 || StringFind(name,"tp3",0) >= 0)
+           {
+            ObjectDelete(0,name);
+           }
+        }
+     }
+   previousBuy = iTime(Symbol(),PERIOD_CURRENT,100);
+   previousSell = iTime(Symbol(),PERIOD_CURRENT,100);
    trade.SetExpertMagicNumber(magic_no);
    trade.SetDeviationInPoints(10);
    trade.SetTypeFilling(ORDER_FILLING_IOC);
@@ -110,26 +133,58 @@ int OnInit()
 
    ArraySetAsSeries(overSoughtBuy,true);
    ArraySetAsSeries(overBoughtSell,true);
+   ArraySetAsSeries(stoValue,true);
+
 //---
    return(INIT_SUCCEEDED);
   }
+
 //+------------------------------------------------------------------+
 //| Expert deinitialization function                                 |
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
-//---
-   ObjectsDeleteAll(0);
+//---"23","38","61","tp1","tp2","tp3"
+   string name = "";
+   for(int i = ObjectsTotal(0,0); i > 0 ; i--)
+     {
+      name = ObjectName(0,i);
+      if(ObjectGetInteger(0,name,OBJPROP_TYPE) == OBJ_RECTANGLE)
+        {
+         if(StringFind(name,"23",0) >= 0 || StringFind(name,"38",0) >= 0 || StringFind(name,"61",0) >= 0 ||
+            StringFind(name,"tp1",0) >= 0 || StringFind(name,"tp2",0) >= 0 || StringFind(name,"tp3",0) >= 0)
+           {
+            ObjectDelete(0,name);
+           }
+        }
+     }
   }
-string indicatorName = "false2v2";
+string indicatorName = "::Indicators\\false2v1.ex5";
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool checkSto(bool g80, bool l20,int startIndex,int endIndex)
+  {
+   for(int i = startIndex; i < endIndex; i++)
+     {
+      if(g80 && stoValue[i] >= 80)
+         return true;
+
+
+      if(l20 && stoValue[i] <= 20)
+         return true;
+     }
+   return false;
+  }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 void OnTick()
   {
 //---
-   removeFromStruct();
-   checkTradeConditions();
+//  removeFromStruct();
+//checkTradeConditions();
 
 
    if(newBar())
@@ -138,56 +193,95 @@ void OnTick()
          Print("Error in Copying Buffer ",GetLastError());
       if(CopyBuffer(falseStoHandler,3,0,500,overSoughtBuy) < 0)
          Print("Error in Copying Buffer ",GetLastError());
+      if(CopyBuffer(falseStoHandler,0,0,500,stoValue) < 0)
+         Print("Error in Copying Buffer ",GetLastError());
 
       if(overBoughtSell[2] != 0 && overBoughtSell[2] != EMPTY_VALUE && sellDrawn == false)
         {
-         Print("Sell: ",overBoughtSell[2]);
+         Print("Sell: ",overBoughtSell[2]," Time: ",iTime(Symbol(),PERIOD_CURRENT,2));
          double highValue = 0, lowValue = 0;
-
-         for(int i = 3; i < Bars(Symbol(),PERIOD_CURRENT); i++)
+         bool below20 = false, above80 = false;
+         int greenIndex = 0;
+         int sellIndex = iBarShift(Symbol(),PERIOD_CURRENT,previousSell,false);
+         for(int i = 3; i < sellIndex; i++)
            {
             if(overSoughtBuy[i] != 0 && overSoughtBuy[i] != EMPTY_VALUE && highValue == 0 && lowValue == 0)
               {
-               int highIndex = iHighest(Symbol(),PERIOD_CURRENT,MODE_HIGH,i,0);
+               Print("Green Arrow: ",overSoughtBuy[i]," Time: ",iTime(Symbol(),PERIOD_CURRENT,i));
+               int highIndex = iHighest(Symbol(),PERIOD_CURRENT,MODE_HIGH,i,3);
                highValue = iHigh(Symbol(),PERIOD_CURRENT,highIndex);
-               Print("High Value: ",highValue," Time: ",iTime(Symbol(),PERIOD_CURRENT,highIndex));
+               Print("High Value ",highValue," Time: ",iTime(Symbol(),PERIOD_CURRENT,highIndex));
+               greenIndex = i;
+               if(checkSto(true,false,3,i))
+                 {
+                  above80 = true;
+                 }
               }
             if(overBoughtSell[i] != 0 && overBoughtSell[i] != EMPTY_VALUE && highValue > 0 && lowValue == 0)
               {
-               int lowIndex = iLowest(Symbol(),PERIOD_CURRENT,MODE_LOW,i,0);
+               Print("Red Arrow: ",overBoughtSell[i]," Time: ",iTime(Symbol(),PERIOD_CURRENT,i));
+               int lowIndex = iLowest(Symbol(),PERIOD_CURRENT,MODE_LOW,i-greenIndex,greenIndex);
                lowValue = iLow(Symbol(),PERIOD_CURRENT,lowIndex);
-               Print("Low Value: ",lowValue," Time: ",iTime(Symbol(),PERIOD_CURRENT,lowIndex));
-               drawFibonacci(POSITION_TYPE_SELL,highValue,lowValue);
-               buyDrawn = false;
-               sellDrawn = true;
+               Print("Low Value ",lowValue," Time: ",iTime(Symbol(),PERIOD_CURRENT,lowIndex));
+               if(checkSto(false,true,greenIndex,i))
+                 {
+                  below20 = true;
+                 }
+               if(below20 && above80)
+                 {
+                  drawFibonacci(POSITION_TYPE_SELL,highValue,lowValue);
+                  //buyDrawn = false;
+                  //sellDrawn = true;
+                  previousSell = iTime(Symbol(),PERIOD_CURRENT,1);
+                 }
                break;
               }
            }
         }
-
+      //========================================
       if(overSoughtBuy[2] != 0 && overSoughtBuy[2] != EMPTY_VALUE && buyDrawn == false)
         {
-         Print("Buy: ",overSoughtBuy[2]);
+         Print("Buy: ",overSoughtBuy[2],"  ", iBarShift(Symbol(),PERIOD_CURRENT,previousBuy,false));
          double highValue = 0, lowValue = 0;
-
-         for(int i = 3; i < Bars(Symbol(),PERIOD_CURRENT); i++)
+         bool below20 = false, above80 = false;
+         int redIndex = 0;
+         int buyIndex = iBarShift(Symbol(),PERIOD_CURRENT,previousBuy,false);
+         for(int i = 3; i < buyIndex; i++)
            {
             if(overBoughtSell[i] != 0 && overBoughtSell[i] != EMPTY_VALUE && highValue == 0 && lowValue == 0)
               {
-               int lowIndex = iLowest(Symbol(),PERIOD_CURRENT,MODE_LOW,i,0);
+               Print("Red Arrow: ",overBoughtSell[i]," Time: ",iTime(Symbol(),PERIOD_CURRENT,i));
+               int lowIndex = iLowest(Symbol(),PERIOD_CURRENT,MODE_LOW,i,3);
                lowValue = iLow(Symbol(),PERIOD_CURRENT,lowIndex);
-               Print("Low Value: ",lowValue," Time: ",iTime(Symbol(),PERIOD_CURRENT,lowIndex));
+               Print("Low Value ",lowValue," Time: ",iTime(Symbol(),PERIOD_CURRENT,lowIndex));
+               redIndex = i;
+               if(checkSto(false,true,3,i))
+                 {
+                  below20 = true;
+                 }
               }
 
             if(overSoughtBuy[i] != 0 && overSoughtBuy[i] != EMPTY_VALUE && highValue == 0 && lowValue > 0)
               {
-               int highIndex = iHighest(Symbol(),PERIOD_CURRENT,MODE_HIGH,i,0);
+               Print("Green Arrow: ",overSoughtBuy[i]," Time: ",iTime(Symbol(),PERIOD_CURRENT,i));
+               int highIndex = iHighest(Symbol(),PERIOD_CURRENT,MODE_HIGH,i-redIndex,redIndex);
                highValue = iHigh(Symbol(),PERIOD_CURRENT,highIndex);
                Print("High Value: ",highValue," Time: ",iTime(Symbol(),PERIOD_CURRENT,highIndex));
-               drawFibonacci(POSITION_TYPE_BUY,highValue,lowValue);
-               buyDrawn = true;
-               sellDrawn = false;
+
+               if(checkSto(true,false,redIndex,i))
+                 {
+                  above80 = true;
+                 }
+               if(below20 && above80)
+                 {
+                  drawFibonacci(POSITION_TYPE_BUY,highValue,lowValue);
+                  //buyDrawn = true;
+                  //sellDrawn = false;
+
+                  previousBuy = iTime(Symbol(),PERIOD_CURRENT,1);
+                 }
                break;
+
               }
            }
         }
@@ -245,8 +339,6 @@ void drawFibonacci(ENUM_POSITION_TYPE type,double high, double low)
             ObjectSetInteger(0,name,OBJPROP_LEVELWIDTH,i,1);
             ObjectSetString(0,name,OBJPROP_LEVELTEXT,i,DoubleToString(values_1[i],2));
            }
-
-
 
          double diff = high - low;
          addToStruct(name,iTime(Symbol(),PERIOD_CURRENT,0)+rectCandles*PeriodSeconds(PERIOD_CURRENT),low+diff*0.236,high-diff*1.1,low+diff*0.382,high-diff*1.62,low+diff*0.5,high-diff*2.62,POSITION_TYPE_SELL);
@@ -398,4 +490,8 @@ void checkTradeConditions()
         }
      }
   }
+//+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+
 //+------------------------------------------------------------------+
